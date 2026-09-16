@@ -1,29 +1,28 @@
-name: Pipeline de priorizacion de leads
- 
-on:
-  schedule:
-    - cron: "0 6 * * *"   # todos los dias 6am UTC
-  workflow_dispatch: {}     # permite dispararlo manualmente para la demo
- 
-permissions:
-  contents: write   # necesario para que el workflow pueda commitear los resultados
- 
-jobs:
-  run-pipeline:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - run: pip install -r requirements.txt
-      - run: python -m src.pipeline
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      - name: Guardar base de datos y progreso de extraccion actualizados
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add db/priorizador.db data/processed/extracciones_ia.csv
-          git diff --staged --quiet || git commit -m "chore: actualizar datos del pipeline [automatico]"
-          git push
+"""
+Pipeline end-to-end: ingesta -> normalizacion -> extraccion IA -> scoring -> carga a BD.
+Un solo disparo, sin pasos manuales. Se ejecuta con: python -m src.pipeline
+"""
+from src import ingesta, normalizacion, extraccion_ia, scoring, carga_bd
+
+
+def run():
+    print("1/5 Ingesta...")
+    crudos = ingesta.cargar_fuentes()
+
+    print("2/5 Normalizacion y deduplicacion...")
+    leads_limpios = normalizacion.normalizar_y_deduplicar(crudos)
+
+    print("3/5 Extraccion con IA sobre conversaciones...")
+    extracciones = extraccion_ia.extraer_info(crudos["conversaciones"], leads_limpios)
+
+    print("4/5 Scoring...")
+    scores = scoring.calcular_scores(leads_limpios, extracciones, crudos["historico_cierres"])
+
+    print("5/5 Carga a base de datos...")
+    carga_bd.persistir(leads_limpios, extracciones, scores, crudos)
+
+    print("Pipeline completo.")
+
+
+if __name__ == "__main__":
+    run()
