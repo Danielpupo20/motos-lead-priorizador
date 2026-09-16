@@ -21,6 +21,15 @@ CANAL_MAP = {
     "formulario web": "Formulario Web",
 }
  
+ESTADO_MAP = {
+    "sin gestion": "Sin gestión",
+    "contactado": "Contactado",
+    "no contesta": "No contesta",
+    "en proceso": "En proceso",
+    "cotizacion enviada": "Cotización enviada",
+    "descartado": "Descartado",
+}
+ 
 CIUDAD_MAP = {
     "bogota": "Bogotá", "bogota dc": "Bogotá", "bogota d.c.": "Bogotá",
     "monteria": "Montería",
@@ -65,6 +74,13 @@ def normalizar_ciudad(ciudad):
     return CIUDAD_MAP.get(clave, str(ciudad).strip().title())
  
  
+def normalizar_estado(estado):
+    if pd.isna(estado):
+        return None
+    clave = _sin_tildes(str(estado).strip().lower())
+    return ESTADO_MAP.get(clave, str(estado).strip().title())
+ 
+ 
 def normalizar_nombre(nombre):
     if pd.isna(nombre):
         return None
@@ -102,6 +118,7 @@ def normalizar_y_deduplicar(crudos: dict) -> pd.DataFrame:
     df["ciudad_normalizada"] = df["ciudad"].apply(normalizar_ciudad)
     df["nombre_normalizado"] = df["nombre_cliente"].apply(normalizar_nombre)
     df["fecha_registro_norm"] = df["fecha_registro"].apply(normalizar_fecha)
+    df["estado_gestion_norm"] = df["estado_gestion"].apply(normalizar_estado)
     df["llave_dedup"] = df.apply(_llave_dedup, axis=1)
  
     df = df.sort_values("fecha_registro_norm")
@@ -111,6 +128,10 @@ def normalizar_y_deduplicar(crudos: dict) -> pd.DataFrame:
         base = grupo.iloc[0].copy()  # registro mas antiguo
         base["lead_ids_origen"] = "|".join(grupo["lead_id"])
         base["canales"] = "|".join(sorted(grupo["canal_normalizado"].dropna().unique()))
+        # el estado de gestion debe ser el mas reciente, no el del primer contacto
+        estados_validos = grupo.dropna(subset=["estado_gestion_norm"])
+        if len(estados_validos):
+            base["estado_gestion_norm"] = estados_validos.iloc[-1]["estado_gestion_norm"]
         for campo in ["email", "ciudad_normalizada", "nombre_normalizado"]:
             if pd.isna(base[campo]) or not str(base[campo]).strip():
                 completos = grupo[campo].dropna()
