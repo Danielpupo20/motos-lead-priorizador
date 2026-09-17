@@ -2,6 +2,7 @@
 Pipeline end-to-end: ingesta -> normalizacion -> extraccion IA -> scoring -> carga a BD.
 Un solo disparo, sin pasos manuales. Se ejecuta con: python -m src.pipeline
 """
+from pathlib import Path
 from src import ingesta, normalizacion, extraccion_ia, scoring, carga_bd
 
 
@@ -13,7 +14,10 @@ def run():
     leads_limpios = normalizacion.normalizar_y_deduplicar(crudos)
 
     print("3/5 Extraccion con IA sobre conversaciones...")
-    extracciones = extraccion_ia.extraer_info(crudos["conversaciones"], leads_limpios)
+    ruta_extracciones = Path(__file__).resolve().parent.parent / "data" / "processed" / "extracciones_ia.csv"
+    extracciones = extraccion_ia.extraer_info_incremental(
+        crudos["conversaciones"], leads_limpios, ruta_extracciones
+    )
 
     print("4/5 Scoring...")
     scores = scoring.calcular_scores(leads_limpios, extracciones, crudos["historico_cierres"])

@@ -11,8 +11,6 @@ import json
 import time
 import pandas as pd
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
  
 load_dotenv()
  
@@ -58,7 +56,7 @@ def _extraer_una(cliente, mensajes, reintentos=4):
             respuesta = cliente.models.generate_content(
                 model=MODEL_NAME,
                 contents=prompt,
-                config=types.GenerateContentConfig(response_mime_type="application/json"),
+                config={"response_mime_type": "application/json"},
             )
             resultado = json.loads(respuesta.text)
             if isinstance(resultado, list):
@@ -125,9 +123,19 @@ def extraer_info_incremental(conversaciones: list, leads_limpios: pd.DataFrame,
  
     api_key = os.environ.get("GEMINI_API_KEY")
     if pendientes and not api_key:
+        if ruta_csv.exists():
+            print("  GEMINI_API_KEY no esta configurada; se reutilizan extracciones existentes.")
+            return pd.read_csv(ruta_csv).drop_duplicates(subset="lead_id", keep="last")
         raise RuntimeError("Falta GEMINI_API_KEY en el archivo .env")
- 
+
     if pendientes:
+        try:
+            from google import genai
+        except ImportError as e:
+            if ruta_csv.exists():
+                print("  Dependencia google-genai no instalada; se reutilizan extracciones existentes.")
+                return pd.read_csv(ruta_csv).drop_duplicates(subset="lead_id", keep="last")
+            raise RuntimeError("Falta instalar la dependencia google-genai.") from e
         cliente = genai.Client(api_key=api_key)
         mapa_ids = _mapa_lead_id_original_a_final(leads_limpios)
         nuevo_archivo = not ruta_csv.exists()
