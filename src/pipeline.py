@@ -13,7 +13,11 @@ def run():
     leads_limpios = normalizacion.normalizar_y_deduplicar(crudos)
 
     print("3/5 Extraccion con IA sobre conversaciones...")
-    extracciones = extraccion_ia.extraer_info(crudos["conversaciones"], leads_limpios)
+    extracciones = extraccion_ia.extraer_info_incremental(
+        crudos["conversaciones"],
+        leads_limpios,
+        ruta_csv="data/processed/extracciones_ia.csv",
+    )
 
     print("4/5 Scoring...")
     scores = scoring.calcular_scores(leads_limpios, extracciones, crudos["historico_cierres"])

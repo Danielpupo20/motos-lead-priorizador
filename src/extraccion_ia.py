@@ -11,8 +11,12 @@ import json
 import time
 import pandas as pd
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
+try:
+    from google import genai
+    from google.genai import types
+except ImportError:
+    genai = None
+    types = None
  
 load_dotenv()
  
@@ -125,8 +129,19 @@ def extraer_info_incremental(conversaciones: list, leads_limpios: pd.DataFrame,
  
     api_key = os.environ.get("GEMINI_API_KEY")
     if pendientes and not api_key:
-        raise RuntimeError("Falta GEMINI_API_KEY en el archivo .env")
- 
+        if ruta_csv.exists():
+            print("  Falta GEMINI_API_KEY; se reutiliza data/processed/extracciones_ia.csv")
+            pendientes = []
+        else:
+            raise RuntimeError("Falta GEMINI_API_KEY en el archivo .env")
+
+    if pendientes and (genai is None or types is None):
+        if ruta_csv.exists():
+            print("  Falta google-genai; se reutiliza data/processed/extracciones_ia.csv")
+            pendientes = []
+        else:
+            raise RuntimeError("Falta la dependencia opcional google-genai")
+
     if pendientes:
         cliente = genai.Client(api_key=api_key)
         mapa_ids = _mapa_lead_id_original_a_final(leads_limpios)
@@ -169,6 +184,8 @@ def extraer_info(conversaciones: list, leads_limpios: pd.DataFrame,
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         raise RuntimeError("Falta GEMINI_API_KEY en el archivo .env")
+    if genai is None or types is None:
+        raise RuntimeError("Falta la dependencia opcional google-genai")
     cliente = genai.Client(api_key=api_key)
  
     mapa_ids = _mapa_lead_id_original_a_final(leads_limpios)
