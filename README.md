@@ -1,4 +1,5 @@
 ¿Qué hace?
+
 Ingesta — carga conversaciones de WhatsApp en texto plano desde data/raw/.
 Normalización y deduplicación — limpia números de teléfono, elimina duplicados y estandariza nombres.
 Extracción con IA — envía cada conversación a Gemini (gemini-3.1-flash-lite) y extrae: modelo de interés, presupuesto/cuota, forma de pago, intención de compra, objeción principal y si el cliente pidió cita.
